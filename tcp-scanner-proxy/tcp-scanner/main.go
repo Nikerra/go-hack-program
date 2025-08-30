@@ -6,12 +6,13 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
 
-func worker(ports, results chan int) {
+func worker(ports, results chan int, address string) {
 	for p := range ports {
-		adress := fmt.Sprintf("scanme.nmap.org:%d", p)
-		conn, err := net.Dial("tcp", adress)
+		addressForScan := fmt.Sprintf(address+":%d", p)
+		conn, err := net.DialTimeout("tcp", addressForScan, 1*time.Second)
 		if err != nil {
 			results <- 0
 			continue
@@ -23,8 +24,8 @@ func worker(ports, results chan int) {
 
 func main() {
 	args := os.Args
-	if len(args) != 2 {
-		fmt.Println("Usage: tcp-scanner-proxy <port>")
+	if len(args) != 3 {
+		fmt.Println("Usage: tcp-scanner-proxy <port> or <address for scan>")
 		os.Exit(1)
 	}
 
@@ -38,6 +39,7 @@ func main() {
 		fmt.Printf("Port must be between 1 and 65535, got: %d\n", portForScan)
 		os.Exit(1)
 	}
+	addressForScan := args[2]
 
 	ports := make(chan int, 100)
 	results := make(chan int, 1000)
@@ -45,7 +47,7 @@ func main() {
 
 	numWorkers := 200
 	for i := 0; i < numWorkers; i++ {
-		go worker(ports, results)
+		go worker(ports, results, addressForScan)
 	}
 
 	go func() {
